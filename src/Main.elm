@@ -4,15 +4,18 @@ import Browser
 import Browser.Events as Event
 import Element exposing (..)
 import Element.Background as Bg
+import Element.Border as Border
 import Html exposing (Html)
 import Json.Decode as Decode
 import List.Extra as List
+import Maybe.Extra as Maybe
 import Random
 import Time
 
 
 type alias Model =
-    { body : List ( Int, Int )
+    { head : ( Int, Int )
+    , body : List ( Int, Int )
     , direction : ( Int, Int )
     , food : Maybe ( Int, Int )
     }
@@ -38,7 +41,7 @@ stageSize =
 main : Program () Model Msg
 main =
     Browser.element
-        { init = init
+        { init = \_ -> init
         , update = update
         , subscriptions = subscriptions
         , view = view
@@ -51,43 +54,42 @@ setFood =
         |> Random.generate NewFood
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : ( Model, Cmd Msg )
+init =
     let
         body =
-            List.initialize 5 (\n -> ( 10 - n, 5 ))
+            List.initialize 4 (\n -> ( 9 - n, 5 ))
     in
-    ( { body = body, direction = ( 1, 0 ), food = Nothing }, setFood )
+    ( { head = ( 10, 5 ), body = body, direction = ( 1, 0 ), food = Nothing }, setFood )
 
 
-move : Model -> List ( Int, Int )
+move : Model -> Model
 move model =
     let
         applyTuple f ( a, b ) ( c, d ) =
             ( f a c, f b d )
 
         head =
-            model.body
-                |> List.head
-                |> Maybe.map (applyTuple (+) model.direction)
-                |> Maybe.withDefault ( 0, 0 )
+            model.head
+                |> applyTuple (+) model.direction
                 |> applyTuple modBy ( stageSize.w, stageSize.h )
+
+        body =
+            model.body
+                |> List.init
+                |> Maybe.unwrap [] ((::) model.head)
     in
-    model.body
-        |> List.init
-        |> Maybe.map ((::) head)
-        |> Maybe.withDefault []
+    { model | head = head, body = body }
 
 
 checkEaten : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 checkEaten ( model, msg ) =
-    if List.head model.body == model.food then
+    if Just model.head == model.food then
         ( { model
             | food = Nothing
             , body =
                 List.last model.body
-                    |> Maybe.map (\x -> List.append model.body [ x ])
-                    |> Maybe.withDefault model.body
+                    |> Maybe.unwrap model.body (\x -> List.append model.body [ x ])
           }
         , setFood
         )
@@ -97,18 +99,17 @@ checkEaten ( model, msg ) =
 
 
 checkCollapse : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-checkCollapse ( model, cmd ) =
-    List.uncons model.body
-        |> Maybe.andThen (\( x, xs ) -> List.elemIndex x xs)
-        |> Maybe.map (always (init ()))
-        |> Maybe.withDefault ( model, cmd )
+checkCollapse (( model, _ ) as default) =
+    model.body
+        |> List.elemIndex model.head
+        |> Maybe.unwrap default (always init)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Tick _ ->
-            ( { model | body = move model }, Cmd.none )
+            ( move model, Cmd.none )
                 |> checkEaten
                 |> checkCollapse
 
@@ -160,7 +161,7 @@ stage model =
             if Maybe.map ((==) c) model.food == Just True then
                 Food
 
-            else if List.member c model.body then
+            else if List.member c (model.head :: model.body) then
                 Snake
 
             else
@@ -191,7 +192,7 @@ viewCell cell =
                 none
 
             Snake ->
-                el [ width fill, height fill, Bg.color (rgb255 200 160 0) ] none
+                el [ width fill, height fill, Bg.color (rgb255 200 160 0), Border.rounded 2 ] none
 
             Food ->
-                el [ width fill, height fill, Bg.color (rgb255 0 200 0) ] none
+                el [ width fill, height fill, Bg.color (rgb255 0 200 0), Border.rounded 2 ] none
