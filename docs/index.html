@@ -11925,11 +11925,8 @@ var $author$project$Main$stage = function (model) {
 	};
 	var corToCell = function (c) {
 		return _Utils_eq(
-			A2(
-				$elm$core$Maybe$map,
-				$elm$core$Basics$eq(c),
-				model._),
-			$elm$core$Maybe$Just(true)) ? 2 : (A2(
+			model._,
+			$elm$core$Maybe$Just(c)) ? 2 : (A2(
 			$elm$core$List$member,
 			c,
 			A2($elm$core$List$cons, model.G, model.s)) ? 1 : 0);
