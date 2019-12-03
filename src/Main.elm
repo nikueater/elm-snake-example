@@ -158,7 +158,7 @@ stage model =
             ( modBy stageSize.w i, i // stageSize.w )
 
         corToCell c =
-            if Maybe.map ((==) c) model.food == Just True then
+            if model.food == Just c then
                 Food
 
             else if List.member c (model.head :: model.body) then
